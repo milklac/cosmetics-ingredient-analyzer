@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// ——— 🌍 6 DİL SÖZLÜĞÜ (Kategoriler ve Riskler Eklendi) ———
+// ——— 🌍 6 DİL SÖZLÜĞÜ ———
 const translations = {
   tr: { 
     title: "Glow & Co.", btn: "✨ ANALİZ ET", report: "🧪 İÇERİK ANALİZİ", match: "🎯 Ürün Eşleşmesi", 
@@ -47,7 +47,7 @@ const translations = {
     skinTitle: "💧 피부 적합성", skin: {oily: "🌿 지성", dry: "💦 건성", combo: "⚖️ 복합성", normal: "✨ 중성"}, 
     safetyTitle: "🛡️ 안전성", clean: "🌱 안전한 성분", placeholder: "📝 여기에 성분을 붙여넣으세요...",
     err: "🚨 연결 오류!",
-    cats: { Skincare: "스킨케어", Cleanser: "클렌저", Moisturizer: "모이스처라이저", Serum: "세럼", Sunscreen: "자외선 차단제", Other: "기타" },
+    cats: { Skincare: "스킨케어", Cleanser: "클렌저", 모이스처라이저: "모이스처라이저", Serum: "세럼", Sunscreen: "자외선 차단제", Other: "기타" },
     risks: { Alcohol: "알코올", Paraben: "파라벤", Sulfate: "황산염" }
   }
 };
@@ -57,10 +57,17 @@ export default function App() {
   const [ing, setIng] = useState('');
   const [res, setRes] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // 📱 TELEFON DEDEKTÖRÜ (Ekran küçükse bu değer 'true' olur)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   const t = translations[lang];
 
   useEffect(() => {
-    // 🛠️ Eksik Olan Animasyon Tanımı (Keyframes) Eklendi!
+    // Ekran boyutu her değiştiğinde dedektörü güncelle
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+
     const style = document.createElement('style');
     style.innerHTML = `
       @keyframes fadeInSmooth {
@@ -74,6 +81,7 @@ export default function App() {
         padding: 0 !important;
         width: 100% !important;
         min-height: 100vh !important;
+        overflow-x: hidden !important; /* Sağa sola kaymayı engelle */
       }
       * { box-sizing: border-box; }
       textarea::placeholder { color: #A8A39E; }
@@ -84,12 +92,15 @@ export default function App() {
     link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const run = async () => {
     if (!ing.trim()) return;
     setLoading(true);
     try {
+      // 🚀 Senin canlı Render motorun!
       const r = await fetch('https://cosmetics-ingredient-analyzer.onrender.com/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,79 +112,73 @@ export default function App() {
   };
 
   return (
-    <div style={s.container}>
-      <nav style={s.nav}>
+    <div style={{ background: '#F8F7F4', minHeight: '100vh', paddingBottom: '80px', fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
+      
+      <nav style={{ textAlign: 'center', padding: isMobile ? '20px 10px' : '30px 0', display: 'flex', justifyContent: 'center', gap: isMobile ? '12px' : '20px', flexWrap: 'wrap' }}>
         {['tr','en','fr','es','ru','ko'].map(l => (
-          <span key={l} onClick={() => setLang(l)} style={lang === l ? s.langA : s.langP}>{l.toUpperCase()}</span>
+          <span key={l} onClick={() => setLang(l)} style={{ fontSize: '0.8rem', fontWeight: lang === l ? 700 : 500, color: lang === l ? '#2C2C2C' : '#A8A39E', borderBottom: lang === l ? '2px solid #8FA882' : 'none', paddingBottom: '2px', cursor: 'pointer', letterSpacing: '1px' }}>
+            {l.toUpperCase()}
+          </span>
         ))}
       </nav>
 
-      <header style={s.header}>
-        <h1 style={s.h1}>{t.title}</h1>
+      <header style={{ textAlign: 'center', marginBottom: isMobile ? '30px' : '50px' }}>
+        {/* 📱 Mobilde başlık 2.8rem'e küçülür, bilgisayarda 4.5rem olur */}
+        <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: isMobile ? '2.8rem' : '4.5rem', color: '#8FA882', margin: 0, fontWeight: 500, letterSpacing: '-1px' }}>
+          {t.title}
+        </h1>
       </header>
 
-      <main style={s.main}>
-        <div style={s.inputWrapper}>
+      <main style={{ maxWidth: '850px', margin: '0 auto', padding: '0 15px' }}>
+        <div style={{ background: '#FFFFFF', padding: isMobile ? '20px' : '30px', borderRadius: '24px', border: '1px solid #EBE7E1', boxShadow: '0 8px 30px rgba(0,0,0,0.02)' }}>
           <textarea 
-            style={s.txt} 
+            style={{ width: '100%', minHeight: '120px', padding: '10px', border: 'none', borderBottom: '1px solid #F0ECE7', outline: 'none', fontSize: isMobile ? '1rem' : '1.1rem', color: '#2C2C2C', background: 'transparent', fontFamily: 'inherit', resize: 'vertical', lineHeight: '1.6' }} 
             placeholder={t.placeholder}
             value={ing} 
             onChange={e => setIng(e.target.value)} 
           />
-          <button style={s.btn} onClick={run} disabled={loading}>
+          <button style={{ width: '100%', marginTop: '20px', padding: '16px', background: '#2C2C2C', color: '#FFFFFF', border: 'none', borderRadius: '50px', fontSize: '0.95rem', fontWeight: 700, letterSpacing: '2px', cursor: 'pointer', transition: '0.3s' }} onClick={run} disabled={loading}>
             {loading ? "⏳..." : t.btn}
           </button>
         </div>
 
         {res && (
-          <div style={s.reportArea}>
-            <div style={s.meta}>{t.report}</div>
+          <div style={{ marginTop: '50px', animation: 'fadeInSmooth 0.8s ease-out' }}>
+            <div style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '3px', marginBottom: '30px' }}>{t.report}</div>
             
-            <div style={s.productBox}>
-              <div style={s.brand}>🧴 {res.product.brand}</div>
-              <div style={s.name}>{res.product.name}</div>
-              <div style={s.matchBadge}>
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '2px', textTransform: 'uppercase' }}>🧴 {res.product.brand}</div>
+              <div style={{ fontFamily: '"Playfair Display", serif', fontSize: isMobile ? '2.2rem' : '3.2rem', color: '#2C2C2C', margin: '10px 0', lineHeight: 1.1 }}>{res.product.name}</div>
+              <div style={{ display: 'inline-block', background: '#F2F5F0', color: '#6A7D5E', padding: '8px 20px', borderRadius: '50px', fontSize: '0.85rem', fontWeight: 600, marginTop: '10px' }}>
                 {t.match}: <strong style={{color: '#8FA882'}}>%{res.product.score}</strong>
               </div>
             </div>
 
-            <div style={s.grid}>
-              {/* Cilt Tipi */}
-              <div style={s.card}>
-                <div style={s.cardTitle}>{t.skinTitle}</div>
+            {/* 📱 Mobilde 1 Sütun (Alt alta), Bilgisayarda 2 Sütun (Yan yana) */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 1fr', gap: '20px' }}>
+              
+              <div style={{ background: '#FFFFFF', padding: isMobile ? '25px' : '35px', borderRadius: '24px', border: '1px solid #EBE7E1' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '1.5px', marginBottom: '20px', textTransform: 'uppercase' }}>{t.skinTitle}</div>
                 {Object.entries(res.skin_scores).map(([k, v]) => (
-                  <div key={k} style={s.barRow}>
-                    <div style={s.barInfo}><span>{t.skin[k]}</span><span>%{v}</span></div>
-                    <div style={s.barBase}>
-                      <div style={{
-                        ...s.barFill, 
-                        width: `${v}%`, 
-                        background: v >= 60 ? '#8FA882' : '#D4CDC7' 
-                      }} />
+                  <div key={k} style={{ marginBottom: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600, color: '#4A4643', marginBottom: '6px' }}><span>{t.skin[k]}</span><span>%{v}</span></div>
+                    <div style={{ height: '6px', background: '#F4F2EF', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: '10px', transition: 'width 1s ease-out', width: `${v}%`, background: v >= 60 ? '#8FA882' : '#D4CDC7' }} />
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Güvenlik & Kategori (Geri Döndü!) */}
-              <div style={s.card}>
-                <div style={s.cardTitle}>{t.safetyTitle}</div>
-                
-                {/* 🛠️ Kategori Rozeti Geri Eklendi */}
-                <div style={s.catBadge}>
+              <div style={{ background: '#FFFFFF', padding: isMobile ? '25px' : '35px', borderRadius: '24px', border: '1px solid #EBE7E1' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '1.5px', marginBottom: '20px', textTransform: 'uppercase' }}>{t.safetyTitle}</div>
+                <div style={{ display: 'inline-block', padding: '6px 14px', background: '#F8F7F4', border: '1px solid #EBE7E1', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700, color: '#8FA882', marginBottom: '15px' }}>
                   {t.cats[res.category] || res.category}
                 </div>
-
-                {/* 🛠️ Güvenlik Kelimeleri Çevrildi */}
-                <div style={{
-                  ...s.safetyText, 
-                  color: res.safety.length > 0 ? '#C59A84' : '#8FA882'
-                }}>
-                  {res.safety.length > 0 
-                    ? `⚠️ ${res.safety.map(r => t.risks[r] || r).join(' • ')}` 
-                    : t.clean}
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: res.safety.length > 0 ? '#C59A84' : '#8FA882' }}>
+                  {res.safety.length > 0 ? `⚠️ ${res.safety.map(r => t.risks[r] || r).join(' • ')}` : t.clean}
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -181,48 +186,3 @@ export default function App() {
     </div>
   );
 }
-
-// ——— 🌿 KUSURSUZ ONSKIN CSS ———
-const s = {
-  container: { background: '#F8F7F4', minHeight: '100vh', paddingBottom: '100px', fontFamily: '"Plus Jakarta Sans", sans-serif' },
-  nav: { textAlign: 'center', padding: '30px 0', display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' },
-  langA: { fontSize: '0.8rem', fontWeight: 700, color: '#2C2C2C', borderBottom: '2px solid #8FA882', paddingBottom: '2px', cursor: 'pointer', letterSpacing: '1px' },
-  langP: { fontSize: '0.8rem', fontWeight: 500, color: '#A8A39E', cursor: 'pointer', letterSpacing: '1px' },
-  
-  header: { textAlign: 'center', marginBottom: '50px' },
-  h1: { fontFamily: '"Playfair Display", serif', fontSize: '4.5rem', color: '#8FA882', margin: 0, fontWeight: 500, letterSpacing: '-1px' },
-  
-  main: { maxWidth: '850px', margin: '0 auto', padding: '0 20px' },
-  inputWrapper: { background: '#FFFFFF', padding: '30px', borderRadius: '24px', border: '1px solid #EBE7E1', boxShadow: '0 8px 30px rgba(0,0,0,0.02)' },
-  
-  txt: { 
-    width: '100%', minHeight: '120px', padding: '15px', 
-    border: 'none', borderBottom: '1px solid #F0ECE7', 
-    outline: 'none', fontSize: '1.1rem', color: '#2C2C2C', 
-    background: 'transparent', fontFamily: 'inherit', resize: 'vertical', lineHeight: '1.6'
-  },
-  btn: { width: '100%', marginTop: '20px', padding: '18px', background: '#2C2C2C', color: '#FFFFFF', border: 'none', borderRadius: '50px', fontSize: '0.95rem', fontWeight: 700, letterSpacing: '2px', cursor: 'pointer', transition: '0.3s' },
-
-  // 🛠️ Animasyon Düzeltildi
-  reportArea: { marginTop: '60px', animation: 'fadeInSmooth 0.8s ease-out' },
-  meta: { textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '3px', marginBottom: '40px' },
-  
-  productBox: { textAlign: 'center', marginBottom: '60px' },
-  brand: { fontSize: '1rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '2px', textTransform: 'uppercase' },
-  name: { fontFamily: '"Playfair Display", serif', fontSize: '3.2rem', color: '#2C2C2C', margin: '10px 0', lineHeight: 1.1 },
-  matchBadge: { display: 'inline-block', background: '#F2F5F0', color: '#6A7D5E', padding: '8px 20px', borderRadius: '50px', fontSize: '0.9rem', fontWeight: 600, marginTop: '10px' },
-
-  grid: { display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '30px' },
-  card: { background: '#FFFFFF', padding: '35px', borderRadius: '24px', border: '1px solid #EBE7E1' },
-  cardTitle: { fontSize: '0.75rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '1.5px', marginBottom: '25px', textTransform: 'uppercase' },
-  
-  // 🛠️ Geri Dönen Kategori Rozeti Stili
-  catBadge: { display: 'inline-block', padding: '6px 14px', background: '#F8F7F4', border: '1px solid #EBE7E1', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700, color: '#8FA882', marginBottom: '20px' },
-  
-  safetyText: { fontSize: '1.1rem', fontWeight: 600 },
-
-  barRow: { marginBottom: '20px' },
-  barInfo: { display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', fontWeight: 600, color: '#4A4643', marginBottom: '8px' },
-  barBase: { height: '6px', background: '#F4F2EF', borderRadius: '10px', overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: '10px', transition: 'width 1s ease-out' }
-};
