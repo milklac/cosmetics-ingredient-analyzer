@@ -92,28 +92,36 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const run = async () => {
+  cconst run = async () => {
     if (!ing.trim()) return;
     setLoading(true);
-    setRes(null); // Eski veriyi temizle
+    setRes(null);
     
     try {
-      const r = await fetch('https://cosmetics-ingredient-analyzer.onrender.com/api/analyze', {
+      const response = await fetch('https://cosmetics-ingredient-analyzer.onrender.com/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients: ing })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ ingredients: ing }) // "ingredients" anahtarı burada çok önemli
       });
 
-      // HTML veya geçersiz veri gelirse yakala
-      const text = await r.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch(e) {
-        alert("🛑 Sunucudan geçersiz bir yanıt geldi! Render loglarını kontrol et.");
-        setLoading(false);
-        return;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Sunucu hatası!");
       }
+
+      if (data.product) {
+        setRes(data);
+      }
+    } catch (err) {
+      alert("Hata: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+};
 
       // Backend bilerek hata fırlattıysa (Örn: df = None ise)
       if (data.error) {

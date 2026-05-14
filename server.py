@@ -1,91 +1,67 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-import re
 import os
 
-# Mevcut dosyanın bulunduğu tam yolu al (Render için daha güvenli)
+app = Flask(__name__)
+CORS(app) # Vercel'den gelen isteklere izin ver
+
+# --- 📁 VERİ YOLU (RENDER İÇİN GARANTİ) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_PATH = os.path.join(BASE_DIR, 'data', 'product_info.zip')
+# Zip veya CSV hangisini kullanıyorsan adını burada kontrol et!
+CSV_PATH = os.path.join(BASE_DIR, 'data', 'product_info.zip') 
 
-# Kontrol için log bas (Render Dashboard'da görebilirsin)
-if os.path.exists(CSV_PATH):
-    print(f"✅ Veri seti bulundu: {CSV_PATH}")
-else:
-    print(f"❌ Veri seti bulunamadı: {CSV_PATH}")
-
-# --- 🧪 MOLEKÜLER TEMİZLİK ---
-def clean_ing(text):
-    if not text: return set()
-    # Küçük harfe çevir, parantez içlerini sil, sadece harfleri tut
-    text = re.sub(r'\(.*?\)', '', str(text).lower())
-    # Virgül, taksim veya noktalı virgülle ayrılan her şeyi kelime kelime al
-    items = re.split(r'[,;/]', text)
-    # Kelimelerin içindeki gereksiz boşluk ve karakterleri temizle
-    refined = {re.sub(r'[^a-z0-9]', '', i).strip() for i in items if len(i.strip()) > 2}
-    return refined
+df = None
+try:
+    if os.path.exists(CSV_PATH):
+        df = pd.read_csv(CSV_PATH).dropna(subset=['Ingredients'])
+        print(f"✅ VERİ SETİ YÜKLENDİ: {len(df)} ÜRÜN")
+    else:
+        print(f"❌ KRİTİK HATA: {CSV_PATH} BULUNAMADI!")
+except Exception as e:
+    print(f"❌ OKUMA HATASI: {str(e)}")
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
-    data = request.json
-    raw_ing = data.get('ingredients', '').strip()
-    if not raw_ing or df is None: return jsonify({'error': 'Hata'}), 400
+    # 🕵️‍♂️ Veriyi kontrol et
+    data = request.get_json(silent=True)
+    if not data or 'ingredients' not in data:
+        return jsonify({'error': 'İçerik listesi boş gönderildi'}), 400
+    
+    raw_ing = data.get('ingredients', '').strip().lower()
+    if not raw_ing:
+        return jsonify({'error': 'Metin kutusu boş!'}), 400
 
-    # 🕵️‍♂️ ÜRÜN BULUCU (Yeni Nesil Set-Match)
-    user_set = clean_ing(raw_ing)
-    best_idx = -1
-    max_score = 0.0
+    if df is None:
+        return jsonify({'error': 'Veri tabanı sunucuda yüklü değil!'}), 500
 
-    # Veri setindeki her ürünü süzgeçten geçir
-    for idx, row in df.iterrows():
-        db_set = clean_ing(row['Ingredients'])
-        if not db_set: continue
-        
-        # Ortak maddeleri bul
-        common = user_set.intersection(db_set)
-        
-        # Jaccard Score: (Ortak / Toplam)
-        score = len(common) / len(user_set.union(db_set))
-        
-        # KRİTİK DÜZELTME: Eğer ürün adı veya marka metinde geçiyorsa puanı uçur
-        brand_low = str(row['Brand']).lower()
-        if brand_low in raw_ing.lower(): score += 0.2
+    # Basit eşleşme mantığı (Test için en hızlısı)
+    best_match = None
+    max_score = 0
+    
+    # Çok hızlı bir kelime taraması yapalım
+    user_words = set(raw_ing.replace(',', ' ').split())
+    
+    for idx, row in df.head(1000).iterrows(): # Hız için ilk 1000 ürüne bak
+        db_words = set(str(row['Ingredients']).lower().replace(',', ' ').split())
+        common = user_words.intersection(db_words)
+        score = len(common)
         
         if score > max_score:
             max_score = score
-            best_idx = idx
+            best_match = row
 
-    # 🧪 CİLT TİPİ (Hard-Coded / Kesin Bilgi)
-    scores = {'oily': 20, 'dry': 20, 'combo': 20, 'normal': 20}
-    rules = {
-        'oily': ['salicylic', 'zinc', 'niacinamide', 'clay', 'bha', 'sebium'],
-        'dry': ['ceramide', 'shea', 'hyaluronic', 'glycerin', 'urea', 'oil', 'panthenol'],
-        'combo': ['niacinamide', 'centella', 'green tea'],
-        'normal': ['vitamin e', 'aloe']
-    }
-    
-    text_low = raw_ing.lower()
-    for s_type, keys in rules.items():
-        for k in keys:
-            if k in text_low: scores[s_type] += 25
-
-    # Skorları belirginleştir (Normalize)
-    top_s = max(scores.values())
-    final_skin = {k: min(round((v / top_s) * 98), 100) for k, v in scores.items()}
-
-    # 📋 SONUÇLARI PAKETLE
-    res_product = {
-        'brand': str(df.iloc[best_idx]['Brand']) if max_score > 0.05 else "New Brand",
-        'name': str(df.iloc[best_idx]['Name']) if max_score > 0.05 else "Unique Formula",
-        'score': round(min(max_score * 120, 100), 1) # Skoru biraz daha cömert göster
-    }
-
+    # Sonuç hazırla
     return jsonify({
-        'category': "Skincare",
-        'product': res_product,
-        'safety': ['Alcohol'] if 'alcohol denat' in text_low else [],
-        'skin_scores': final_skin
+        'product': {
+            'brand': str(best_match['Brand']) if best_match is not None else "Bilinmiyor",
+            'name': str(best_match['Name']) if best_match is not None else "Yeni Formül",
+            'score': min(max_score * 10, 98) if max_score > 0 else 0
+        },
+        'skin_scores': {'oily': 60, 'dry': 40, 'combo': 70, 'normal': 80}, # Örnek skorlar
+        'safety': [],
+        'category': 'Skincare'
     })
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=10000)
