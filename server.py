@@ -4,15 +4,15 @@ import pandas as pd
 import re
 import os
 
-app = Flask(__name__)
-CORS(app)
+# Mevcut dosyanın bulunduğu tam yolu al (Render için daha güvenli)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(BASE_DIR, 'data', 'product_info.zip')
 
-# --- 📂 VERİ KONTROLÜ ---
-CSV_PATH = 'data/product_info.zip'
-df = None
+# Kontrol için log bas (Render Dashboard'da görebilirsin)
 if os.path.exists(CSV_PATH):
-    df = pd.read_csv(CSV_PATH).dropna(subset=['Ingredients'])
-    print(f"✅ {len(df)} ürün hazır.")
+    print(f"✅ Veri seti bulundu: {CSV_PATH}")
+else:
+    print(f"❌ Veri seti bulunamadı: {CSV_PATH}")
 
 # --- 🧪 MOLEKÜLER TEMİZLİK ---
 def clean_ing(text):
