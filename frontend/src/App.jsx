@@ -90,7 +90,7 @@ export default function App() {
     if (!ing.trim()) return;
     setLoading(true);
     try {
-      const r = await fetch('http://localhost:5000/api/analyze', {
+      const r = await fetch('https://cosmetics-ingredient-analyzer.onrender.com/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients: ing })
