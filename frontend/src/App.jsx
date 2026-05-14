@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-// ——— 🌍 6 DİL SÖZLÜĞÜ ———
 const translations = {
   tr: { 
     title: "Glow & Co.", btn: "✨ ANALİZ ET", report: "🧪 İÇERİK ANALİZİ", match: "🎯 Ürün Eşleşmesi", 
     skinTitle: "💧 CİLT UYUMU", skin: {oily: "🌿 Yağlı", dry: "💦 Kuru", combo: "⚖️ Karma", normal: "✨ Normal"}, 
     safetyTitle: "🛡️ GÜVENLİK", clean: "🌱 Temiz Formül", placeholder: "📝 İçindekiler (Ingredients) listesini buraya yapıştırın...",
-    err: "🚨 Bağlantı Hatası! Sunucu açık mı?",
+    err: "🚨 Sunucu uykuda olabilir, 10 saniye bekleyip tekrar bas!",
     cats: { Skincare: "Cilt Bakımı", Cleanser: "Temizleyici", Moisturizer: "Nemlendirici", Serum: "Serum", Sunscreen: "Güneş Kremi", Other: "Diğer" },
     risks: { Alcohol: "Alkol", Paraben: "Paraben", Sulfate: "Sülfat" }
   },
@@ -14,7 +13,7 @@ const translations = {
     title: "Glow & Co.", btn: "✨ ANALYZE", report: "🧪 INGREDIENT ANALYSIS", match: "🎯 Product Match", 
     skinTitle: "💧 SKIN COMPATIBILITY", skin: {oily: "🌿 Oily", dry: "💦 Dry", combo: "⚖️ Combo", normal: "✨ Normal"}, 
     safetyTitle: "🛡️ SAFETY", clean: "🌱 Clean Formula", placeholder: "📝 Paste ingredients list here...",
-    err: "🚨 Connection Error! Is the server running?",
+    err: "🚨 Server might be asleep, wait 10s and try again!",
     cats: { Skincare: "Skincare", Cleanser: "Cleanser", Moisturizer: "Moisturizer", Serum: "Serum", Sunscreen: "Sunscreen", Other: "Other" },
     risks: { Alcohol: "Alcohol", Paraben: "Paraben", Sulfate: "Sulfate" }
   },
@@ -57,14 +56,11 @@ export default function App() {
   const [ing, setIng] = useState('');
   const [res, setRes] = useState(null);
   const [loading, setLoading] = useState(false);
-  
-  // 📱 TELEFON DEDEKTÖRÜ (Ekran küçükse bu değer 'true' olur)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const t = translations[lang];
 
   useEffect(() => {
-    // Ekran boyutu her değiştiğinde dedektörü güncelle
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
 
@@ -81,7 +77,7 @@ export default function App() {
         padding: 0 !important;
         width: 100% !important;
         min-height: 100vh !important;
-        overflow-x: hidden !important; /* Sağa sola kaymayı engelle */
+        overflow-x: hidden !important;
       }
       * { box-sizing: border-box; }
       textarea::placeholder { color: #A8A39E; }
@@ -99,7 +95,7 @@ export default function App() {
   const run = async () => {
     if (!ing.trim()) return;
     setLoading(true);
-    setRes(null); // Eski sonuçları temizle ki çakışmasın
+    setRes(null); // Eski veriyi temizle
     
     try {
       const r = await fetch('https://cosmetics-ingredient-analyzer.onrender.com/api/analyze', {
@@ -108,30 +104,30 @@ export default function App() {
         body: JSON.stringify({ ingredients: ing })
       });
 
-      // Eğer sunucu uykudaysa veya hata verdiyse
-      if (!r.ok) {
-        alert("🚨 Sunucu şu an meşgul veya uyanıyor! (Render 500/504 Hatası). 10 saniye bekle ve tekrar bas.");
+      // HTML veya geçersiz veri gelirse yakala
+      const text = await r.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch(e) {
+        alert("🛑 Sunucudan geçersiz bir yanıt geldi! Render loglarını kontrol et.");
         setLoading(false);
         return;
       }
 
-      const data = await r.json();
-
-      // Eğer Python sunucumuz bize "Hata" gönderdiyse (Örn: Veri tabanı bulunamadı)
+      // Backend bilerek hata fırlattıysa (Örn: df = None ise)
       if (data.error) {
-        alert("🛑 BACKEND HATASI: " + data.error + " (Büyük ihtimalle ZIP dosyası Render'a gitmedi!)");
+        alert("🚨 PYTHON SUNUCU HATASI: " + data.error + "\n(Büyük ihtimalle product_info.zip dosyası Render'da eksik veya okunmuyor!)");
       } 
-      // Her şey yolundaysa ve ürün verisi geldiyse ekrana çiz
+      // Her şey tamamsa ve ürün objesi varsa
       else if (data.product) {
         setRes(data);
-      } 
-      else {
-        alert("❓ Beklenmeyen bir cevap geldi, logları kontrol et.");
+      } else {
+        alert("❓ Beklenmeyen formatta veri geldi.");
       }
 
     } catch (err) { 
-      alert("🚨 " + t.err); 
-      console.error(err);
+      alert(t.err + "\nDetay: " + err.message); 
     }
     
     setLoading(false);
@@ -149,7 +145,6 @@ export default function App() {
       </nav>
 
       <header style={{ textAlign: 'center', marginBottom: isMobile ? '30px' : '50px' }}>
-        {/* 📱 Mobilde başlık 2.8rem'e küçülür, bilgisayarda 4.5rem olur */}
         <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: isMobile ? '2.8rem' : '4.5rem', color: '#8FA882', margin: 0, fontWeight: 500, letterSpacing: '-1px' }}>
           {t.title}
         </h1>
@@ -168,24 +163,24 @@ export default function App() {
           </button>
         </div>
 
-        {res && (
+        {/* 🛡️ Soru İşaretli Güvenlik Kalkanları (Optional Chaining) */}
+        {res && res.product && (
           <div style={{ marginTop: '50px', animation: 'fadeInSmooth 0.8s ease-out' }}>
             <div style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '3px', marginBottom: '30px' }}>{t.report}</div>
             
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '2px', textTransform: 'uppercase' }}>🧴 {res.product.brand}</div>
-              <div style={{ fontFamily: '"Playfair Display", serif', fontSize: isMobile ? '2.2rem' : '3.2rem', color: '#2C2C2C', margin: '10px 0', lineHeight: 1.1 }}>{res.product.name}</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '2px', textTransform: 'uppercase' }}>🧴 {res?.product?.brand}</div>
+              <div style={{ fontFamily: '"Playfair Display", serif', fontSize: isMobile ? '2.2rem' : '3.2rem', color: '#2C2C2C', margin: '10px 0', lineHeight: 1.1 }}>{res?.product?.name}</div>
               <div style={{ display: 'inline-block', background: '#F2F5F0', color: '#6A7D5E', padding: '8px 20px', borderRadius: '50px', fontSize: '0.85rem', fontWeight: 600, marginTop: '10px' }}>
-                {t.match}: <strong style={{color: '#8FA882'}}>%{res.product.score}</strong>
+                {t.match}: <strong style={{color: '#8FA882'}}>%{res?.product?.score}</strong>
               </div>
             </div>
 
-            {/* 📱 Mobilde 1 Sütun (Alt alta), Bilgisayarda 2 Sütun (Yan yana) */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 1fr', gap: '20px' }}>
               
               <div style={{ background: '#FFFFFF', padding: isMobile ? '25px' : '35px', borderRadius: '24px', border: '1px solid #EBE7E1' }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '1.5px', marginBottom: '20px', textTransform: 'uppercase' }}>{t.skinTitle}</div>
-                {Object.entries(res.skin_scores).map(([k, v]) => (
+                {Object.entries(res?.skin_scores || {}).map(([k, v]) => (
                   <div key={k} style={{ marginBottom: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600, color: '#4A4643', marginBottom: '6px' }}><span>{t.skin[k]}</span><span>%{v}</span></div>
                     <div style={{ height: '6px', background: '#F4F2EF', borderRadius: '10px', overflow: 'hidden' }}>
@@ -198,10 +193,10 @@ export default function App() {
               <div style={{ background: '#FFFFFF', padding: isMobile ? '25px' : '35px', borderRadius: '24px', border: '1px solid #EBE7E1' }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#A8A39E', letterSpacing: '1.5px', marginBottom: '20px', textTransform: 'uppercase' }}>{t.safetyTitle}</div>
                 <div style={{ display: 'inline-block', padding: '6px 14px', background: '#F8F7F4', border: '1px solid #EBE7E1', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700, color: '#8FA882', marginBottom: '15px' }}>
-                  {t.cats[res.category] || res.category}
+                  {t.cats[res?.category] || res?.category || "Skincare"}
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: res.safety.length > 0 ? '#C59A84' : '#8FA882' }}>
-                  {res.safety.length > 0 ? `⚠️ ${res.safety.map(r => t.risks[r] || r).join(' • ')}` : t.clean}
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: (res?.safety?.length > 0) ? '#C59A84' : '#8FA882' }}>
+                  {(res?.safety?.length > 0) ? `⚠️ ${res.safety.map(r => t.risks[r] || r).join(' • ')}` : t.clean}
                 </div>
               </div>
 
