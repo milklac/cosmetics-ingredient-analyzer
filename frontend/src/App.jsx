@@ -99,15 +99,41 @@ export default function App() {
   const run = async () => {
     if (!ing.trim()) return;
     setLoading(true);
+    setRes(null); // Eski sonuçları temizle ki çakışmasın
+    
     try {
-      // 🚀 Senin canlı Render motorun!
       const r = await fetch('https://cosmetics-ingredient-analyzer.onrender.com/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients: ing })
       });
-      setRes(await r.json());
-    } catch { alert(t.err); }
+
+      // Eğer sunucu uykudaysa veya hata verdiyse
+      if (!r.ok) {
+        alert("🚨 Sunucu şu an meşgul veya uyanıyor! (Render 500/504 Hatası). 10 saniye bekle ve tekrar bas.");
+        setLoading(false);
+        return;
+      }
+
+      const data = await r.json();
+
+      // Eğer Python sunucumuz bize "Hata" gönderdiyse (Örn: Veri tabanı bulunamadı)
+      if (data.error) {
+        alert("🛑 BACKEND HATASI: " + data.error + " (Büyük ihtimalle ZIP dosyası Render'a gitmedi!)");
+      } 
+      // Her şey yolundaysa ve ürün verisi geldiyse ekrana çiz
+      else if (data.product) {
+        setRes(data);
+      } 
+      else {
+        alert("❓ Beklenmeyen bir cevap geldi, logları kontrol et.");
+      }
+
+    } catch (err) { 
+      alert("🚨 " + t.err); 
+      console.error(err);
+    }
+    
     setLoading(false);
   };
 
